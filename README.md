@@ -2,6 +2,10 @@
 
 이 문서는 `pokemom.py` Streamlit 앱을 구성한 핵심 로직을 간단한 README 형식으로 정리한 것입니다.
 
+## 배포 링크
+
+- Streamlit Cloud: https://bigdatapokemon.streamlit.app/
+
 ## 1. Pandas를 이용한 데이터 준비
 
 - **CSV 로드 (`pd.read_csv`)**  
