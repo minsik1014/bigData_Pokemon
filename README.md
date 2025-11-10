@@ -98,6 +98,8 @@
   - `st.metric("포켓몬 수", f"{total_pkm:,}")` 등 KPI 카드 생성
   - `st.sidebar.expander`, `st.columns`, `st.image(fetch_sprite(...))`  
     필터 패널, 컬럼 레이아웃, 포켓몬 스프라이트 이미지를 구성하는 핵심 명령입니다.
+  - `avg_value = df[stat_choice].mean()` / `max_row = df.loc[df[stat_choice].idxmax()]`  
+    스탯 분포 요약 표에서 평균값과 최고 스탯 포켓몬을 구하는 Pandas Series 메서드 조합입니다.
 
 ## 5. 코드/문법 상세 설명
 
@@ -105,6 +107,15 @@
   - `from __future__ import annotations` : Python 3.11 이하에서도 PEP 563 방식의 지연 평가 타입 힌트를 사용하기 위한 선언입니다.
   - `from functools import lru_cache`, `from pathlib import Path` 등 표준 라이브러리 임포트는 상단에 정리되어 있어 각 기능(파일 경로 처리, 캐싱)이 어떤 모듈에서 오는지 명시합니다.
   - 함수 정의 시 `def radar_chart(stats: dict[str, float], title: str = "Base Stat Radar")`처럼 타입 힌트와 기본값을 함께 제공해 파라미터 의미를 분명히 합니다.
+
+- **데이터 로딩/정제 문법**
+  - `pd.read_csv(csv_path, encoding="utf-8-sig")` : CSV 파일을 UTF-8-SIG로 읽어 들여 한글/윈도우 BOM 이슈를 방지합니다.
+  - `df.rename(columns=lambda c: c.strip())` : 람다를 활용해 컬럼 이름 전체에 공백 제거 함수를 일괄 적용합니다.
+  - `df.drop(columns=["Unnamed: 0"])` : 불필요한 열을 제거할 때 `columns` 파라미터로 리스트를 넘겨 가독성을 높입니다.
+  - `df.insert(0, "DexID", np.arange(1, len(df) + 1))` : 첫 번째 위치에 연속 ID 컬럼을 삽입하는 Pandas Insert 문법입니다.
+  - `df["Type 1"], df["Type 2"] = zip(*df["Type"].apply(infer_types))` : `apply` 결과(튜플)를 `zip(*)`으로 언패킹해 여러 새 컬럼을 동시에 생성합니다.
+  - `df["Generation"] = df["DexID"].apply(assign_generation)` : 사용자 정의 함수와 `apply`를 결합해 세대 정보를 계산합니다.
+  - `df["CatchRate"] = df["catch_rate"].apply(parse_numeric_front)` 등 문자열 컬럼을 숫자로 변환할 때 재사용 가능한 파서를 적용합니다.
 
 - **데코레이터 활용**
   - `@lru_cache(maxsize=None)` : 동일 파라미터로 호출되는 `get_sprite_url` 결과를 메모리에 저장해 네트워크 호출을 줄입니다.
@@ -129,6 +140,29 @@
   - `st.multiselect("세대", generations, default=generations)` : 기본적으로 모든 세대가 선택된 상태에서 사용자가 특정 세대만 필터링할 수 있습니다.
   - `st.slider(f"{col} 범위", min_val, max_val, (min_val, max_val))` : 튜플 기본값으로 최소/최대 범위를 지정해 슬라이더가 범위 선택 모드로 작동합니다.
   - `st.selectbox(..., format_func=lambda dex: option_label(candidate_df.loc[dex]))` : 선택 옵션에 사용자 친화적 라벨을 표시하기 위해 `format_func`를 사용합니다.
+
+- **데이터 필터링/선택 문법**
+  - `df[df["Generation"].isin(gen_filter) & df["Type 1"].isin(type1_filter) & df["Type 2"].isin(type2_filter)]` : `isin`과 논리 연산자를 조합해 다중 컬럼 필터를 작성합니다.
+  - `df["Name"].str.contains(name_query, case=False, na=False)` : 문자열 열에서 대소문자 무시 부분 일치를 수행하며 결측치를 False로 처리합니다.
+  - `candidate_df = candidate_df[candidate_df["Name"].str.contains(detail_query, case=False, na=False) | candidate_df["DexID"].astype(str).str.contains(detail_query)]` : 문자열/숫자 조건을 `|`로 묶어 검색 UI를 구현합니다.
+  - `candidate_df["DexID"].astype(str).str.contains(detail_query)` : 숫자형 도감번호를 문자열로 변환해 텍스트 검색을 가능하게 합니다.
+  - `candidate_df = candidate_df.set_index("DexID")` 후 `candidate_df.loc[selected_dex]` : 인덱스를 도감번호로 바꾸고 `.loc`로 특정 행을 즉시 조회합니다.
+  - `options_df.loc[team_choices].reset_index().rename(columns={"index": "DexID"})` : 리스트 선택 결과를 다시 데이터프레임으로 모아 인덱스를 컬럼으로 복원합니다.
+  - `type_filtered = df[df["Type 1"].isin(selected_types) | df["Type 2"].isin(selected_types)]` : `|` 연산자로 두 컬럼 중 하나라도 조건을 만족하면 통과시키는 필터를 만듭니다.
+  - `type_counts = df["Type 1"].value_counts().reset_index(); type_counts.columns = ["Type 1", "Count"]` : `value_counts` 결과를 데이터프레임 형태로 재정렬하고 컬럼명을 명시적으로 지정합니다.
+  - `df["Type 1"].mode().iat[0]` : 가장 빈도가 높은 타입을 찾을 때 `mode()`로 복수 결과가 나올 수 있으므로 `.iat[0]`으로 첫 값을 선택합니다.
+  - `type_counts.drop(labels=["None"], errors="ignore")` : 특정 레이블만 제거하고 없으면 에러 없이 넘어가도록 `errors="ignore"`를 사용합니다.
+
+- **집계/요약 문법**
+  - `df.groupby("Generation")["Total"].mean()` / `df.groupby("Type 1")[STAT_COLS].mean()` : 그룹 기준 컬럼과 집계 타깃 컬럼을 명시해 세대·타입별 평균을 계산합니다.
+  - `df.groupby("Generation")["Total"].mean().reset_index()` : 그룹 결과를 다시 일반 데이터프레임으로 펼쳐 차트에 사용합니다.
+  - `team_df[["Total"] + STAT_COLS].agg(["sum", "mean"]).T` : 여러 통계 함수를 동시에 적용한 뒤 `.T`로 전치해 표 형태를 바꿉니다.
+  - `pd.concat([team_df["Type 1"], team_df["Type 2"]]).value_counts()` : 두 시리즈를 위아래로 붙여 타입 빈도를 계산합니다.
+  - `type_avg.sort_values(stat, ascending=False).head(3)` : 특정 스탯 기준 내림차순 정렬 후 상위 3개만 추출합니다.
+  - `total_top = df.groupby("Type 1")["Total"].mean().sort_values(...).head(3).reset_index()` : 그룹 집계 → 정렬 → 상위 행 선택 → 인덱스 리셋까지 한 번에 체인 방식으로 작성합니다.
+  - `df["Generation"].nunique()` / `df["Total"].mean()` : KPI 카드에 사용되는 고유 세대 수, 전체 평균 Total을 간단한 Series 메서드로 구합니다.
+  - `bar_data = type_counts.astype(int)` : `value_counts` 결과를 Streamlit 차트에 맞게 정수형으로 변환합니다.
+  - `round(avg_value, 2)` / `int(max_row[stat_choice])` : 출력 표에서 소수 둘째 자리까지 반올림하거나 정수형으로 변환해 값 표현을 통일합니다.
 
 - **Seaborn/Matplotlib 설정**
   - `sns.set_theme(style="whitegrid")` : 그래프 전역 스타일을 설정해 모든 차트가 일관된 배경/그리드를 갖습니다.
