@@ -59,3 +59,89 @@
   `st.multiselect`, `st.slider`, `st.text_input`, `st.selectbox`를 조합해 포켓몬 목록을 즉시 필터링하고, 선택한 포켓몬의 상세 표/이미지/레이더 차트가 업데이트되도록 구성했습니다.
 
 이와 같이 Pandas의 전처리(GroupBy, Apply, 필터링)와 Seaborn·Matplotlib의 다양한 그래프, Streamlit의 인터랙티브 위젯을 조합해 포켓몬 데이터를 분석/시각화하는 “Pokédex Insights” 앱을 작성했습니다.
+
+## 4. 표·그래프에 사용된 세부 명령어
+
+- **데이터프레임/표 렌더링**
+  - `st.dataframe(filtered[display_cols], use_container_width=True, height=320)`  
+    탐색기에서 필터링된 결과표를 가로폭에 맞춰 표시합니다.
+  - `st.table(summary)` / `st.table(summary_df)`  
+    팀 요약 스탯, 스탯 분포 요약 등 작은 표를 고정 폭으로 그립니다.
+  - `st.table(top.rename(...))`, `st.table(total_top.rename(...))`  
+    타입별 TOP3 랭킹을 간단한 표로 보여줍니다.
+
+- **요약 통계 계산**
+  - `df.groupby("Generation")["Total"].mean()`  
+    세대별 평균 Total KPI/라인 차트용 집계를 만듭니다.
+  - `df.groupby("Type 1")[STAT_COLS].mean()`  
+    타입별 평균 스탯 테이블과 바 차트에 사용하는 집계입니다.
+  - `team_df[["Total"] + STAT_COLS].agg(["sum", "mean"]).T`  
+    선택한 팀의 합계/평균 스탯을 전치해 표 형태로 변환합니다.
+  - `pd.concat([team_df["Type 1"], team_df["Type 2"]]).value_counts()`  
+    팀 빌더 바 차트용 타입 분포를 계산합니다.
+
+- **그래프 관련 명령**
+  - `sns.lineplot(data=gen_avg, x="Generation", y="Total", marker="o")`  
+    세대별 평균 Total 추이를 선 그래프로 표현합니다.
+  - `sns.barplot(data=type_counts, y="Type 1", x="Count")`  
+    타입별 포켓몬 수를 가로 막대 그래프로 시각화합니다.
+  - `sns.barplot(data=melted, x="Stat", y="Value", hue="Type 1")`  
+    타입 비교 바 차트에서 melt한 데이터셋을 사용합니다.
+  - `sns.histplot(df[stat_choice], kde=True)`  
+    선택 스탯 분포를 KDE가 포함된 히스토그램으로 그립니다.
+  - `sns.scatterplot(..., hue="DisplayType")`  
+    키·몸무게 페이지에서 선택 타입별 색상을 지정합니다.
+  - `st.bar_chart(bar_data.astype(int))`  
+    Streamlit 기본 바 차트로 팀 타입 분포를 직관적으로 표시합니다.
+
+- **기타 표시 요소**
+  - `st.metric("포켓몬 수", f"{total_pkm:,}")` 등 KPI 카드 생성
+  - `st.sidebar.expander`, `st.columns`, `st.image(fetch_sprite(...))`  
+    필터 패널, 컬럼 레이아웃, 포켓몬 스프라이트 이미지를 구성하는 핵심 명령입니다.
+
+## 5. 코드/문법 상세 설명
+
+- **모듈 임포트와 타입 힌트**
+  - `from __future__ import annotations` : Python 3.11 이하에서도 PEP 563 방식의 지연 평가 타입 힌트를 사용하기 위한 선언입니다.
+  - `from functools import lru_cache`, `from pathlib import Path` 등 표준 라이브러리 임포트는 상단에 정리되어 있어 각 기능(파일 경로 처리, 캐싱)이 어떤 모듈에서 오는지 명시합니다.
+  - 함수 정의 시 `def radar_chart(stats: dict[str, float], title: str = "Base Stat Radar")`처럼 타입 힌트와 기본값을 함께 제공해 파라미터 의미를 분명히 합니다.
+
+- **데코레이터 활용**
+  - `@lru_cache(maxsize=None)` : 동일 파라미터로 호출되는 `get_sprite_url` 결과를 메모리에 저장해 네트워크 호출을 줄입니다.
+  - `@lru_cache(maxsize=512)` : `fetch_sprite`는 512개의 다른 이름까지 캐시하여 API 응답을 재활용합니다.
+  - `@st.cache_data(show_spinner=False)` : Streamlit에서 데이터프레임을 캐시해 앱이 재실행되더라도 CSV 로드를 반복하지 않도록 합니다.
+
+- **Pandas 문법**
+  - `df.rename(columns=lambda c: c.strip())` : 람다 함수를 사용해 모든 컬럼명 좌우 공백을 제거합니다.
+  - `df.insert(0, "DexID", np.arange(1, len(df) + 1))` : 0번째 위치에 새로운 열을 삽입해 연속된 도감 번호를 생성합니다.
+  - `df["Type 1"], df["Type 2"] = zip(*df["Type"].apply(infer_types))` : `apply`로 반환된 튜플을 언패킹하여 두 개의 컬럼에 동시에 할당합니다.
+  - `filtered = filtered[(filtered[col] >= min_v) & (filtered[col] <= max_v)]` : 불리언 마스크를 체인으로 적용할 때 괄호로 우선순위를 명시하고, `&` 연산자를 사용해 조건을 결합합니다.
+  - `type_avg[type_avg["Type 1"].isin(selected_types)]` : `isin`을 통해 멀티셀렉트 결과 리스트에 포함된 행만 추출합니다.
+  - `subset.melt(id_vars="Type 1", var_name="Stat", value_name="Value")` : wide 포맷을 long 포맷으로 변환해 여러 스탯을 동시에 시각화할 수 있게 합니다.
+
+- **NumPy/정규식 처리**
+  - `np.arange(1, len(df) + 1)` : 1부터 `len(df)`까지의 정수 배열을 생성합니다.
+  - `np.linspace(0, 2 * np.pi, len(labels), endpoint=False)` : 레이더 차트 각도를 균등 분포로 생성합니다.
+  - `re.search(r"(\d+(\.\d+)?)", str(value))` : 정규식을 사용해 문자열 선두의 숫자(정수 또는 소수)를 추출합니다.
+
+- **Streamlit 인터랙션**
+  - `st.sidebar.radio("페이지 선택", pages)` : 사이드바 라디오 버튼에서 문자열 목록 중 하나를 선택하면 해당 페이지 렌더 함수를 호출합니다.
+  - `st.multiselect("세대", generations, default=generations)` : 기본적으로 모든 세대가 선택된 상태에서 사용자가 특정 세대만 필터링할 수 있습니다.
+  - `st.slider(f"{col} 범위", min_val, max_val, (min_val, max_val))` : 튜플 기본값으로 최소/최대 범위를 지정해 슬라이더가 범위 선택 모드로 작동합니다.
+  - `st.selectbox(..., format_func=lambda dex: option_label(candidate_df.loc[dex]))` : 선택 옵션에 사용자 친화적 라벨을 표시하기 위해 `format_func`를 사용합니다.
+
+- **Seaborn/Matplotlib 설정**
+  - `sns.set_theme(style="whitegrid")` : 그래프 전역 스타일을 설정해 모든 차트가 일관된 배경/그리드를 갖습니다.
+  - `fig, ax = plt.subplots(figsize=(5, 3))` : 명시적 Figure/Axes 생성 후 Seaborn 플롯을 배치하면 Streamlit에서 레이아웃 제어가 용이합니다.
+  - `ax.set_thetagrids(np.degrees(angles[:-1]), labels, fontsize=8)` : 레이더 차트에서 각도 라벨을 한글 폰트로 표시하기 위해 축 설정을 별도로 수행합니다.
+  - `plt.close(fig)` : Streamlit에 그래프를 전달한 후 리소스를 해제하여 메모리 누수를 방지합니다.
+
+- **네트워크/예외 처리**
+  - `requests.get(url, timeout=10)` : PokéAPI 호출 시 타임아웃을 지정해 Streamlit 앱이 장시간 멈추는 것을 방지합니다.
+  - `resp.raise_for_status()` : HTTP 에러를 즉시 감지해 `except` 블록으로 넘어가 대체 이미지를 로딩합니다.
+  - `except Exception: return get_sprite_url(fallback_dex)` : 모든 예외를 포괄해도 앱이 죽지 않고 백업 URL을 사용하는 방어 코드를 포함합니다.
+
+- **컬럼 생성과 사용자 정의 함수**
+  - `df["Generation"] = df["DexID"].apply(assign_generation)` : 사용자 정의 경계 로직을 적용해 세대 정보를 결정합니다.
+  - `type_filtered["DisplayType"] = type_filtered.apply(pick_display_type, axis=1)` : 행 단위로 함수를 적용하여 산점도의 색상 기준을 결정합니다.
+  - `option_label(row)` : 문자열 포맷팅으로 `#001 Bulbasaur • Gen 1 • Total 318`처럼 직관적인 라벨을 만들어 선택 UI 전반에 재사용합니다.
