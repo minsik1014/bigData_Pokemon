@@ -195,6 +195,17 @@ def render_dashboard(df: pd.DataFrame):
         st.pyplot(fig)
         plt.close(fig)
 
+    st.markdown(
+        """
+        <div style="font-size:0.9rem; color:#475569;">
+        데이터 출처<br/>
+        • 포켓몬 종합 정보: <a href="https://zenodo.org/records/4661775" target="_blank">Zenodo Pokémon CSV</a><br/>
+        • 스프라이트 및 상세 정보: <a href="https://pokeapi.co/" target="_blank">PokéAPI</a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 
 def render_explorer(df: pd.DataFrame):
     st.header("포켓몬 탐색기")

@@ -6,6 +6,11 @@
 
 - Streamlit Cloud: https://bigdatapokemon.streamlit.app/
 
+## 데이터 출처
+
+- 포켓몬 CSV: https://zenodo.org/records/4661775  
+- PokéAPI: https://pokeapi.co/
+
 ## 1. Pandas를 이용한 데이터 준비
 
 - **CSV 로드 (`pd.read_csv`)**  
