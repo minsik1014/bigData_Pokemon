@@ -65,7 +65,8 @@ def fetch_sprite(name: str, fallback_dex: int) -> str:
 def option_label(row: pd.Series) -> str:
     form = str(row.get("Evolution", "")).strip()
     form_suffix = f" ({form})" if form else ""
-    dex_id = int(row.name if row.name is not None else row.get("DexID", 0))
+    fallback = row.name if row.name is not None else row.get("EntryID", 0)
+    dex_id = int(row.get("DexID", fallback))
     return f"#{dex_id:03d} {row['Name']}{form_suffix} • Gen {row['Generation']} • Total {row['Total']}"
 
 
@@ -99,6 +100,19 @@ def infer_types(cell: str | float | int) -> tuple[str, str]:
     return type1, type2
 
 
+def build_natdex_ids(names: pd.Series) -> pd.Series:
+    """Assign the same Pokédex number to alternate forms that share a base name."""
+    seen: dict[str, int] = {}
+    next_id = 0
+    natdex: list[int] = []
+    for name in names:
+        if name not in seen:
+            next_id += 1
+            seen[name] = next_id
+        natdex.append(seen[name])
+    return pd.Series(natdex, index=names.index, dtype=int)
+
+
 @st.cache_data(show_spinner=False)
 def load_data(path: str = "pokemon.csv") -> pd.DataFrame:
     csv_path = Path(path)
@@ -111,7 +125,8 @@ def load_data(path: str = "pokemon.csv") -> pd.DataFrame:
     if "Unnamed: 0" in df.columns:
         df = df.drop(columns=["Unnamed: 0"])
 
-    df.insert(0, "DexID", np.arange(1, len(df) + 1))
+    df.insert(0, "EntryID", np.arange(1, len(df) + 1))
+    df.insert(1, "DexID", build_natdex_ids(df["Name"]))
     df["Type 1"], df["Type 2"] = zip(*df["Type"].apply(infer_types))
     df["Generation"] = df["DexID"].apply(assign_generation)
     df["CatchRate"] = df["catch_rate"].apply(parse_numeric_front)
@@ -248,21 +263,21 @@ def render_explorer(df: pd.DataFrame):
         if candidate_df.empty:
             st.info("검색과 필터 조건에 맞는 포켓몬이 없습니다.")
             return
-        candidate_df = candidate_df.set_index("DexID")
-        selected_dex = st.selectbox(
+        candidate_df = candidate_df.set_index("EntryID")
+        selected_entry = st.selectbox(
             "상세 확인할 포켓몬",
             candidate_df.index.tolist(),
-            format_func=lambda dex: option_label(candidate_df.loc[dex]),
+            format_func=lambda entry: option_label(candidate_df.loc[entry]),
         )
-        detail = candidate_df.loc[selected_dex]
+        detail = candidate_df.loc[selected_entry]
         st.subheader(f"{detail['Name']} 상세")
         cols = st.columns([1, 1])
         with cols[0]:
-            sprite_url = fetch_sprite(detail["Name"], int(selected_dex))
+            sprite_url = fetch_sprite(detail["Name"], int(detail["DexID"]))
             st.image(sprite_url, width=180, caption="Official Artwork")
             st.write(
                 f"""
-                - 도감 번호: {int(selected_dex)}
+                - 도감 번호: {int(detail['DexID'])}
                 - 세대: {detail['Generation']}
                 - 타입: {detail['Type 1']} / {detail['Type 2']}
                 - Total: {detail['Total']}
@@ -353,19 +368,23 @@ def render_size_page(df: pd.DataFrame):
             else df
         )
     with select_col:
-        candidate_df = candidate_df.set_index("DexID")
-        selected_dex = st.selectbox(
+        candidate_df = candidate_df.set_index("EntryID")
+        selected_entry = st.selectbox(
             "포켓몬 선택",
             candidate_df.index.tolist(),
-            format_func=lambda dex: option_label(candidate_df.loc[dex]),
+            format_func=lambda entry: option_label(candidate_df.loc[entry]),
         )
 
-    selected_row = candidate_df.loc[selected_dex]
+    selected_row = candidate_df.loc[selected_entry]
     st.subheader(f"{selected_row['Name']} 키·몸무게")
     st.write(f"- 키: {selected_row['Height_m']} m")
     st.write(f"- 몸무게: {selected_row['Weight_kg']} kg")
     st.write(f"- 타입: {selected_row['Type 1']} / {selected_row['Type 2']}")
-    st.image(fetch_sprite(selected_row["Name"], int(selected_dex)), width=200, caption="Official Artwork")
+    st.image(
+        fetch_sprite(selected_row["Name"], int(selected_row["DexID"])),
+        width=200,
+        caption="Official Artwork",
+    )
 
     st.subheader("타입별 키·몸무게 분포")
     type_options = sorted(set(df["Type 1"]).union(df["Type 2"]))
@@ -402,18 +421,18 @@ def render_size_page(df: pd.DataFrame):
 
 def render_team_builder(df: pd.DataFrame):
     st.header("팀 빌더 & 밸런스 체크")
-    options_df = df.set_index("DexID")
+    options_df = df.set_index("EntryID")
     team_choices = st.multiselect(
         "최대 6마리 선택",
         options_df.index.tolist(),
         max_selections=6,
-        format_func=lambda dex: option_label(options_df.loc[dex]),
+        format_func=lambda entry: option_label(options_df.loc[entry]),
     )
     if not team_choices:
         st.info("팀을 선택하면 스탯 요약을 볼 수 있습니다.")
         return
 
-    team_df = options_df.loc[team_choices].reset_index().rename(columns={"index": "DexID"})
+    team_df = options_df.loc[team_choices].reset_index().rename(columns={"index": "EntryID"})
     summary = team_df[["Total"] + STAT_COLS].agg(["sum", "mean"]).T
     summary.columns = ["합계", "평균"]
     st.table(summary)
@@ -431,11 +450,11 @@ def render_team_builder(df: pd.DataFrame):
 
     st.write("### 팀 구성 이미지")
     image_cols = st.columns(min(6, len(team_choices)))
-    for idx, dex in enumerate(team_choices):
+    for idx, entry_id in enumerate(team_choices):
         col = image_cols[idx % len(image_cols)]
-        row = options_df.loc[dex]
+        row = options_df.loc[entry_id]
         with col:
-            st.image(fetch_sprite(row["Name"], int(dex)), width=120, caption=row["Name"])
+            st.image(fetch_sprite(row["Name"], int(row["DexID"])), width=120, caption=row["Name"])
 
 
 def render_playground(df: pd.DataFrame):
