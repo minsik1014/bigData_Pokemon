@@ -8,9 +8,12 @@
 - 주제 선택 이유: 포켓몬은 누구나 쉽게 흥미를 느낄 수 있는 주제로, 방대한 데이터(세대·타입·능력치 등)를 활용해 실습하기 좋고 글로벌 인기와 분석 수요가 높아 의미 있는 인사이트를 도출할 수 있기 때문입니다.
 - 시연 동영상(YouTube):
 - 팀원 소개
-  - 심민식 | 프런트엔드 | GitHub: https://github.com/minsik1014
-  - 최정규 | 백엔드 | GitHub: https://github.com/JeongGyul
-  - 김준혁 | 백엔드 | GitHub: https://github.com/ddo0122
+  - 심민식 | 프런트엔드 | GitHub: https://github.com/minsik1014  
+    ![심민식](minsik.jpg)
+  - 최정규 | 백엔드 | GitHub: https://github.com/JeongGyul  
+    ![최정규](jeonggyu.jpg)
+  - 김준혁 | 백엔드 | GitHub: https://github.com/ddo0122  
+    ![김준혁](junhyuk.jpg)
 
 ## 주제 선정 이유
 
