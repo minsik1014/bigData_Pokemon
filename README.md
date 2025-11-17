@@ -6,14 +6,15 @@
 
 - 주제: 포켓몬에 대한 다양한 데이터
 - 주제 선택 이유: 포켓몬은 누구나 쉽게 흥미를 느낄 수 있는 주제로, 방대한 데이터(세대·타입·능력치 등)를 활용해 실습하기 좋고 글로벌 인기와 분석 수요가 높아 의미 있는 인사이트를 도출할 수 있기 때문입니다.
-- 시연 동영상(YouTube):
+- 시연 동영상:  
+  <video src="assets/pokemonVideo.mp4" controls width="600"></video>
 - 팀원 소개
   - 심민식 | 프런트엔드 | GitHub: https://github.com/minsik1014  
-    ![심민식](minsik.jpg)
+    ![심민식](assets/minsik.jpg)
   - 최정규 | 백엔드 | GitHub: https://github.com/JeongGyul  
-    ![최정규](jeonggyu.jpg)
+    ![최정규](assets/jeonggyu.jpg)
   - 김준혁 | 백엔드 | GitHub: https://github.com/ddo0122  
-    ![김준혁](junhyuk.jpg)
+    ![김준혁](assets/junhyuk.jpg)
 
 ## 주제 선정 이유
 
@@ -81,7 +82,7 @@
   `st.sidebar.radio`로 “홈 / 포켓몬 탐색기 / 타입 분석 / 스탯 분포 / 키·몸무게 / 팀 빌더” 페이지를 선택하고, 각 함수(`render_*`)가 독립적으로 UI를 렌더링합니다.
 
 - **이미지 로딩 (`st.image`)**  
-  - 오박사/로고 등은 로컬 파일(`123.png`, `pokemon.jpg`)을 사용.  
+  - 오박사/로고 등은 로컬 파일(`assets/123.png`, `assets/pokemon.jpg`)을 사용.  
   - 포켓몬 스프라이트는 `fetch_sprite()`에서 PokéAPI를 호출해 가져오고 실패 시 백업 URL(`get_sprite_url`)을 사용합니다.
 
 - **인터랙티브 필터**  

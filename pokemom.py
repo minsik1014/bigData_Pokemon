@@ -163,7 +163,7 @@ def render_dashboard(df: pd.DataFrame):
     img_col, text_col = st.columns([1, 3])
     with img_col:
         st.image(
-            "123.png",
+            "assets/123.png",
             width=220,
             caption="오박사의 도감 브리핑",
         )
@@ -484,7 +484,7 @@ def main():
     with st.sidebar:
         logo_col, title_col = st.columns([1, 3])
         with logo_col:
-            st.image("pokemon.jpg", width=70)
+            st.image("assets/pokemon.jpg", width=70)
         with title_col:
             st.markdown("### Pokédex 네비게이션")
     pages = [
