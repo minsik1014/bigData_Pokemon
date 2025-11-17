@@ -7,10 +7,7 @@
 - 주제: 포켓몬에 대한 다양한 데이터
 - 주제 선택 이유: 포켓몬은 누구나 쉽게 흥미를 느낄 수 있는 주제로, 방대한 데이터(세대·타입·능력치 등)를 활용해 실습하기 좋고 글로벌 인기와 분석 수요가 높아 의미 있는 인사이트를 도출할 수 있기 때문입니다.
 - 시연 동영상:  
-  <video controls width="600">
-    <source src="assets/pokemonVideo.mp4" type="video/mp4" />
-    브라우저가 HTML5 비디오를 지원하지 않습니다.
-  </video>
+  https://github.com/user-attachments/assets/95371371-4a18-4c4b-acb4-54a0d8a36ace
 - 팀원 소개
   - 심민식 | 프런트엔드 | GitHub: https://github.com/minsik1014  
     ![심민식](assets/minsik.jpg)
